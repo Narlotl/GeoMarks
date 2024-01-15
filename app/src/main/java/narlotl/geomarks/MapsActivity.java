@@ -5,7 +5,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -94,14 +93,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(binding.getRoot());
 
         String apiKey = getString(R.string.API_KEY);
-        /*try {
-            ApplicationInfo appInfo = this.getPackageManager().getApplicationInfo(this.getPackageName(), PackageManager.GET_META_DATA);
-            apiKey = appInfo.metaData.getString("com.google.android.geo.API_KEY");
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new RuntimeException(e);
-        }*/
         if (!Places.isInitialized()) {
-            assert apiKey != null;
             Places.initialize(this, apiKey);
         }
         geocoder = new Geocoder(this, Locale.ENGLISH);

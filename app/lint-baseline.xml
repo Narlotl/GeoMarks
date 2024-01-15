@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.2.0" type="baseline" client="gradle" dependencies="false" name="AGP (8.2.0)" variant="all" version="8.2.0">
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`."
+        errorLine1="        String copy = s.toLowerCase();"
+        errorLine2="                        ~~~~~~~~~~~">
+        <location
+            file="src/main/java/narlotl/geomarks/MapsActivity.java"
+            line="75"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toUpperCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`."
+        errorLine1="        return copy.substring(0, 1).toUpperCase() + copy.substring(1);"
+        errorLine2="                                    ~~~~~~~~~~~">
+        <location
+            file="src/main/java/narlotl/geomarks/MapsActivity.java"
+            line="76"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`."
+        errorLine1="                setting.setText(getString(R.string.setting, capitalizeFirstLetter(markerData.getString(&quot;marker&quot;)), markerData.getString(&quot;setting&quot;).toLowerCase()));"
+        errorLine2="                                                                                                                                                   ~~~~~~~~~~~">
+        <location
+            file="src/main/java/narlotl/geomarks/MapsActivity.java"
+            line="222"
+            column="148"/>
+    </issue>
+
+    <issue
+        id="Instantiatable"
+        message="`MapsActivity` must extend android.app.Service"
+        errorLine1="            android:name=&quot;MapsActivity&quot;"
+        errorLine2="                          ~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="21"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NotificationPermission"
+        message="When targeting Android 13 or higher, posting a permission requires holding the `POST_NOTIFICATIONS` permission (usage from com.squareup.picasso.RemoteViewsAction.NotificationAction)">
+        <location
+            file="src/main/AndroidManifest.xml"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="This tag is not supported in images generated from this vector icon for API &lt; 24; check generated icon to make sure it looks acceptable"
+        errorLine1="    &lt;clip-path"
+        errorLine2="    ^">
+        <location
+            file="src/main/res/drawable/active_dark.xml"
+            line="12"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="This tag is not supported in images generated from this vector icon for API &lt; 24; check generated icon to make sure it looks acceptable"
+        errorLine1="    &lt;clip-path"
+        errorLine2="    ^">
+        <location
+            file="src/main/res/drawable/active_light.xml"
+            line="12"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="This tag is not supported in images generated from this vector icon for API &lt; 24; check generated icon to make sure it looks acceptable"
+        errorLine1="    &lt;clip-path"
+        errorLine2="    ^">
+        <location
+            file="src/main/res/drawable/gone_dark.xml"
+            line="13"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="This tag is not supported in images generated from this vector icon for API &lt; 24; check generated icon to make sure it looks acceptable"
+        errorLine1="    &lt;clip-path"
+        errorLine2="    ^">
+        <location
+            file="src/main/res/drawable/gone_light.xml"
+            line="13"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;mqxhVaD!&quot; instead of &quot;mqxhVaD1&quot;?"
+        errorLine1="    &lt;string name=&quot;API_KEY&quot;>AIzaSyB02O2JXgpIh8ojTDx5X5mqxhVaD1UEl2E&lt;/string>"
+        errorLine2="                                                     ^">
+        <location
+            file="src/main/res/values/secrets.xml"
+            line="3"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.active_dark` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/active_dark.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.active_light` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/active_light.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.black` appears to be unused"
+        errorLine1="    &lt;color name=&quot;black&quot;>#FF000000&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.white` appears to be unused"
+        errorLine1="    &lt;color name=&quot;white&quot;>#FFFFFFFF&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="4"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.gone_dark` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/gone_dark.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.gone_light` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/gone_light.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.layout.list_image` appears to be unused"
+        errorLine1="&lt;RelativeLayout xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/layout/list_image.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.title_activity_maps` appears to be unused"
+        errorLine1="    &lt;string name=&quot;title_activity_maps&quot;>MapsActivity&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.text` appears to be unused"
+        errorLine1="    &lt;string name=&quot;text&quot;>Test text\nwith newlines&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.x` appears to be unused"
+        errorLine1="    &lt;string name=&quot;x&quot;>X&lt;/string>"
+        errorLine2="            ~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="8"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.data` appears to be unused"
+        errorLine1="    &lt;string name=&quot;data&quot;>&lt;![CDATA[&lt;a href=\&quot;https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&amp;PID=$1%s\&quot;>U.S. National Geodetic Survey&lt;/a>]]&gt;&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="10"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.marker_image` appears to be unused"
+        errorLine1="    &lt;string name=&quot;marker_image&quot;>Marker image&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="15"
+            column="13"/>
+    </issue>
+
+</issues>
