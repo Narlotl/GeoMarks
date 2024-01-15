@@ -15,3 +15,4 @@
 local.properties
 location.kml
 **/*/res/values/secrets.xml
+/app/lint-baseline.xml
