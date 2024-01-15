@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">GeoMarks</string>
+    <string name="title_activity_maps">MapsActivity</string>
+    <string name="text">Test text\nwith newlines</string>
+    <string name="setting">%1$s set in %2$s</string>
+    <string name="stamping">Stamped \"%1$s\"</string>
+    <string name="close">Close</string>
+    <string name="x">X</string>
+    <string name="submit">Submit recovery</string>
+    <string name="data"><![CDATA[<a href=\"https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&PID=$1%s\">U.S. National Geodetic Survey</a>]]></string>
+    <string name="openMap">Open marker in Google Maps</string>
+    <string name="open">Open in Maps</string>
+    <string name="recenter">Recenter</string>
+    <string name="images">Images</string>
+    <string name="marker_image">Marker image</string>
+    <string name="status">Status</string>
+    <string name="setting_title">Setting</string>
+    <string name="description">Description</string>
+    <string name="stamping_title">Stamping</string>
+</resources>

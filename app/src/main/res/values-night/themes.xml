@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.GeoMarks" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your dark theme here. -->
+        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="android:colorBackground">#333</item>
+        <item name="android:textColor">#FFF</item>
+        <item name="textColorInverse">#000</item>
+        <item name="buttonColor">#000</item>
+        <item name="colorPrimaryDark">#222</item>
+    </style>
+</resources>

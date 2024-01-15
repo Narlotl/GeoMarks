@@ -1,0 +1,12 @@
+<resources>
+    <!-- Base application theme. -->
+    <style name="Base.Theme.GeoMarks" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="android:colorBackground">#FFF</item>
+        <item name="android:textColor">#000</item>
+        <item name="textColorInverse">#FFF</item>
+        <item name="buttonColor">#BFBFBF</item>
+        <item name="colorPrimaryDark">#000</item>
+    </style>
+</resources>
