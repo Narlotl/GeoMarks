@@ -24,10 +24,7 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="${API_KEY}" />
-        <meta-data
-            android:name="narlotl.geomarks.apiKey"
-            android:value="${API_KEY}"/>
+            android:value="@string/API_KEY" />
 
         <activity
             android:name=".MapsActivity"

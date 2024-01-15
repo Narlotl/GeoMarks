@@ -93,13 +93,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         narlotl.geomarks.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        String apiKey;
-        try {
+        String apiKey = getString(R.string.API_KEY);
+        /*try {
             ApplicationInfo appInfo = this.getPackageManager().getApplicationInfo(this.getPackageName(), PackageManager.GET_META_DATA);
             apiKey = appInfo.metaData.getString("com.google.android.geo.API_KEY");
         } catch (PackageManager.NameNotFoundException e) {
             throw new RuntimeException(e);
-        }
+        }*/
         if (!Places.isInitialized()) {
             assert apiKey != null;
             Places.initialize(this, apiKey);
