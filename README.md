@@ -4,8 +4,7 @@ An  Android version of [USA.govfresh.com/geomarks](https://USA.govfresh.com/geom
 
 ## Installation
 
-Download [GeoMarks.apk](https://github.com/Narlotl/GeoMarks/releases/latest) and run it. You may have to allow the browser to [install unknown files](https://support.google.com/android/thread/107226949?hl=en&msgid=107233255).\
-A Google Play version is coming soon.
+Download [GeoMarks.apk](https://github.com/Narlotl/GeoMarks/releases/latest) and run it. You may have to allow the browser to [install unknown files](https://support.google.com/android/thread/107226949?hl=en&msgid=107233255).
 
 ## Data
 
