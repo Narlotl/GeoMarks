@@ -71,6 +71,9 @@ import narlotl.geomarks.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
+    // TODO:
+    // Add update checker
+
     public static String capitalizeFirstLetter(String s) {
         String copy = s.toLowerCase();
         return copy.substring(0, 1).toUpperCase() + copy.substring(1);
@@ -99,7 +102,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         geocoder = new Geocoder(this, Locale.ENGLISH);
 
         volleyQueue = Volley.newRequestQueue(MapsActivity.this);
-
+        volleyQueue.add(new JsonObjectRequest(Request.Method.GET, "https://api.github.com/repos/Narlotl/GeoMarks/releases/latest", null, data -> {
+            try {
+                String version = data.getString("tag_name");
+                String currentVersion = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA).metaData.getString("version");
+                if (!version.equals(currentVersion))
+                    new UpdateDialog(version, currentVersion).show(getSupportFragmentManager(), "update");
+            } catch (JSONException e) {
+                Log.e("Error", e.toString());
+            } catch (PackageManager.NameNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }, error -> {
+        }));
         volleyQueue.add(new JsonArrayRequest(Request.Method.GET,
                 "https://firebasestorage.googleapis.com/v0/b/survey-markers.appspot.com/o/states.json?alt=media&token=56e7422d-1377-4aa4-8607-30d946323b09",
                 null,
