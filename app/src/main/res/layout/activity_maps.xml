@@ -3,7 +3,7 @@
     xmlns:map="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">w
+    android:layout_height="match_parent">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/map"
@@ -16,28 +16,35 @@
         map:layout_constraintTop_toTopOf="parent"
         tools:context=".MapsActivity" />
 
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/autocomplete"
-        android:name="com.google.android.libraries.places.widget.AutocompleteSupportFragment"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/android:colorBackground"
-        tools:ignore="MissingConstraints" />
-
     <LinearLayout
         android:id="@+id/navigationBar"
+        style="?android:attr/buttonBarStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         map:layout_constraintBottom_toBottomOf="parent">
 
         <Button
+            android:id="@+id/search"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="0dp"
+            android:background="@android:color/transparent"
+            android:textColor="@color/black"
+            android:text="@string/search"
+            android:textAllCaps="false"
+            android:textSize="22sp" />
+
+        <Button
             android:id="@+id/recenter"
+            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="0dp"
             android:background="@android:color/transparent"
             android:drawableStart="@drawable/near_me"
+            android:textColor="@color/black"
             android:text="@string/recenter"
             android:textAllCaps="false"
             android:textSize="22sp" />

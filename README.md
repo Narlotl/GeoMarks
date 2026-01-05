@@ -1,6 +1,6 @@
 # GeoMarks
 
-An  Android version of [USA.govfresh.com/geomarks](https://USA.govfresh.com/geomarks).
+An Android app to display survey markers.
 
 ## Installation
 

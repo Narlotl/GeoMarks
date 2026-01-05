@@ -17,18 +17,17 @@
         android:theme="@style/Base.Theme.GeoMarks"
         tools:targetApi="31">
 
-        <service
-            android:name="MapsActivity"
-            android:foregroundServiceType="location" >
-        </service>
-
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/API_KEY" />
 
+        <service
+            android:name=".MapsActivity"
+            android:foregroundServiceType="location" />
+
         <meta-data
             android:name="version"
-            android:value="1.0.1" />
+            android:value="1.1.0" />
 
         <activity
             android:name=".MapsActivity"

@@ -17,4 +17,6 @@
     <string name="setting_title">Setting</string>
     <string name="description">Description</string>
     <string name="stamping_title">Stamping</string>
+    <string name="title_activity_maps2">MapsActivity2</string>
+    <string name="search">Search</string>
 </resources>
