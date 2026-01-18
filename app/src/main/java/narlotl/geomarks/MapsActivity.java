@@ -9,8 +9,6 @@ import androidx.fragment.app.FragmentActivity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -18,11 +16,14 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.NoConnectionError;
@@ -35,7 +36,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MapStyleOptions;
+import com.google.android.gms.maps.model.MapColorScheme;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -46,7 +47,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -74,16 +74,32 @@ import narlotl.geomarks.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
     public static String capitalizeFirstLetter(String s) {
+        if (s.length() == 0)
+            return s;
+
         String copy = s.toLowerCase();
         return copy.substring(0, 1).toUpperCase() + copy.substring(1);
     }
+
+    public static String pastEquals(String s) {
+        int index = s.indexOf('=');
+        if (index == -1)
+            return s;
+        return s.substring(index + 2);
+    }
+
+    private final List<Place.Field> placeFields = Collections.singletonList(Place.Field.LOCATION);
+    private static final String placeErrorString = "Error finding place.";
 
     private boolean darkMode;
     private GoogleMap map;
     private RequestQueue volleyQueue;
     private FusedLocationProviderClient fusedLocationClient;
-    private final List<Place.Field> placeFields = Collections.singletonList(Place.Field.LOCATION);
-
+    private MarkerOptions activeIcon;
+    private MarkerOptions goneIcon;
+    private MarkerOptions locatorIcon;
+    private Marker locatorMarker;
+    private double currentLat, currentLon;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,20 +119,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new ActivityResultContracts.StartActivityForResult(),
                         result -> {
                             Intent intent = result.getData();
+                            if (intent == null) {
+                                Toast.makeText(this, placeErrorString, Toast.LENGTH_SHORT).show();
+                                return;
+                            }
                             if (result.getResultCode() == PlaceAutocompleteActivity.RESULT_OK) {
                                 // Get location
                                 AutocompletePrediction prediction = PlaceAutocomplete.getPredictionFromIntent(intent);
+                                if (prediction == null) {
+                                    Toast.makeText(this, placeErrorString, Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
                                 AutocompleteSessionToken sessionToken = PlaceAutocomplete.getSessionTokenFromIntent(intent);
 
                                 // Get location coordinates
                                 PlacesClient placesClient = Places.createClient(this);
                                 FetchPlaceRequest request =
-                                    FetchPlaceRequest.builder(prediction.getPlaceId(), placeFields)
-                                        .setSessionToken(sessionToken).build();
+                                        FetchPlaceRequest.builder(prediction.getPlaceId(), placeFields)
+                                                .setSessionToken(sessionToken).build();
                                 Task<FetchPlaceResponse> task = placesClient.fetchPlace(request);
                                 task.addOnSuccessListener(e -> {
                                     Place place = task.getResult().getPlace();
-                                    loadMap(place.getLocation());
+                                    LatLng location = place.getLocation();
+                                    if (location == null) {
+                                        Toast.makeText(this, placeErrorString, Toast.LENGTH_SHORT).show();
+                                        return;
+                                    }
+                                    loadMap(location);
                                 });
                             }
                         }
@@ -144,10 +173,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         // Set up search button
-        Button search = findViewById(R.id.search);
+        ImageButton search = findViewById(R.id.search);
         search.setOnClickListener(e -> placeAutocompleteActivityResultLauncher.launch(autocompleteIntent));
         // Set up recenter button
-        Button recenter = findViewById(R.id.recenter);
+        ImageButton recenter = findViewById(R.id.recenter);
         recenter.setOnClickListener(e -> getLocation());
 
         // Create map
@@ -159,25 +188,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     final static String imageHost = "https://geodesy.noaa.gov";
     final Picasso picasso = Picasso.get();
+
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
-        if (darkMode)
-            map.setMapStyle(MapStyleOptions.loadRawResourceStyle(
-                    this, R.raw.dark_map));
-        else
-            map.setMapStyle(MapStyleOptions.loadRawResourceStyle(
-                    this, R.raw.light_map));
-        map.setOnMapClickListener(this::loadMap);
+        map.setMapColorScheme(MapColorScheme.FOLLOW_SYSTEM);
+        map.setOnMapLongClickListener(this::loadMap);
+
+        String theme = darkMode ? "dark" : "light";
+        activeIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("active_" + theme + ".png"));
+        goneIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("gone_" + theme + ".png"));
+        locatorIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("locator_" + theme + ".png")).zIndex(2);
 
         PopupWindow popup = new PopupWindow(this);
-        View view = getLayoutInflater().inflate(R.layout.popup, findViewById(R.id.scrollView), false);
+        popup.setAnimationStyle(R.style.popup_animation);
+        View view = getLayoutInflater().inflate(R.layout.popup, findViewById(R.id.popup), false);
+        ScrollView scrollView = view.findViewById(R.id.scroll_view);
         Button close = view.findViewById(R.id.close);
         close.setOnClickListener(e -> popup.dismiss());
         TextView title = view.findViewById(R.id.title);
+        LinearLayout settingGroup = view.findViewById(R.id.setting_group);
         TextView setting = view.findViewById(R.id.setting);
+        LinearLayout stampingGroup = view.findViewById(R.id.stamping_group);
         TextView stamping = view.findViewById(R.id.stamping);
         TextView description = view.findViewById(R.id.description);
+        LinearLayout historyGroup = view.findViewById(R.id.history_group);
         TextView historyView = view.findViewById(R.id.history);
         Button openMap = view.findViewById(R.id.openMap);
         Button submit = view.findViewById(R.id.submit);
@@ -197,11 +232,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             try {
                 JSONObject markerData = (JSONObject) marker.getTag();
                 assert markerData != null;
-                String id = markerData.getString("pid");
+                String pid = markerData.getString("pid");
 
                 // Request images
                 images.removeAllViews();
-                volleyQueue.add(new JsonArrayRequest(Request.Method.GET, "https://surveymarkers.eliasfretwell.com/getImages?pid=" + id, null, data -> {
+                volleyQueue.add(new JsonArrayRequest(Request.Method.GET, "https://surveymarkers.eliasfretwell.com/getImages?pid=" + pid, null, data -> {
                     try {
                         for (int i = 0; i < data.length(); i++) {
                             ImageView imageView = new ImageView(this);
@@ -228,38 +263,56 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                 }, error -> Log.e("Error", error.toString())));
 
-                title.setText(id);
-                if (markerData.has("setting"))
-                    setting.setText(getString(R.string.setting, capitalizeFirstLetter(markerData.getString("marker")), markerData.getString("setting").toLowerCase()));
-                else {
-                    view.findViewById(R.id.setting_title).setVisibility(View.GONE);
-                    setting.setVisibility(View.GONE);
-                }
-                if (markerData.has("stamping"))
-                    stamping.setText(getString(R.string.stamping, markerData.getString("stamping")));
-                else {
-                    view.findViewById(R.id.stamping_title).setVisibility(View.GONE);
-                    stamping.setVisibility(View.GONE);
-                }
-                description.setText(WordUtils.capitalizeFully(markerData.getString("description")));
-                JSONArray history = markerData.getJSONArray("HISTORY");
-                StringBuilder historyText = new StringBuilder();
-                for (int i = history.length() - 1; i >= 0; i--) {
-                    JSONObject report = history.getJSONObject(i);
-                    String date = Integer.toString(report.getInt("date") % 10000); // Get first 4 digits (year)
-                    historyText.append(date).append(" - ").append(capitalizeFirstLetter(report.getString("condition")));
-                    if (i > 0) historyText.append("\n");
-                }
-                historyView.setText(historyText);
+                // Have buttons go to marker pages
                 double latitude = markerData.getDouble("latitude"), longitude = markerData.getDouble("longitude");
                 openMap.setOnClickListener(click -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/place/" + latitude + "," + longitude))));
-                submit.setOnClickListener(click -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&PID=" + id))));
+                submit.setOnClickListener(click -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&PID=" + pid))));
+
+                // Set text box content
+                title.setText(pid);
+                if (markerData.has("setting")) {
+                    settingGroup.setVisibility(View.VISIBLE);
+                    setting.setText(getString(
+                            R.string.setting,
+                            capitalizeFirstLetter(pastEquals(markerData.getString("marker"))),
+                            pastEquals(markerData.getString("setting")).toLowerCase()
+                    ));
+                } else
+                    settingGroup.setVisibility(View.GONE);
+                if (markerData.has("stamping")) {
+                    stampingGroup.setVisibility(View.VISIBLE);
+                    stamping.setText(getString(R.string.stamping, markerData.getString("stamping")));
+                } else
+                    stampingGroup.setVisibility(View.GONE);
+                description.setText(WordUtils.capitalizeFully(markerData.getString("description")));
+
+                // Show history
+                if (markerData.has("HISTORY")) {
+                    historyGroup.setVisibility(View.VISIBLE);
+
+                    JSONArray history = markerData.getJSONArray("HISTORY");
+                    StringBuilder historyText = new StringBuilder();
+                    for (int i = history.length() - 1; i >= 0; i--) {
+                        JSONObject report = history.getJSONObject(i);
+                        int dateNumber = report.optInt("date");
+                        String date;
+                        if (dateNumber == 0)
+                            date = report.getString("date");
+                        else
+                            date = Integer.toString(report.getInt("date") % 10000); // Get first 4 digits (year)
+                        historyText.append(date).append(" - ").append(capitalizeFirstLetter(report.getString("condition")));
+                        if (i > 0) historyText.append("\n");
+                    }
+                    historyView.setText(historyText);
+                } else
+                    historyGroup.setVisibility(View.GONE);
             } catch (JSONException e) {
                 Log.e("JSON", e.toString());
             }
 
             popup.setContentView(view);
             popup.showAtLocation(view, Gravity.CENTER, 0, 0);
+            scrollView.scrollTo(0, 0);
 
             return true;
         });
@@ -272,19 +325,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener(this,
-            location -> loadMap(new LatLng(location.getLatitude(), location.getLongitude()))
+                        location -> loadMap(new LatLng(location.getLatitude(), location.getLongitude()))
                 );
     }
 
+    private static final double SAME_DISTANCE = 0.000230347467053; // The amount of degrees in ~0.1 mi
+
     private void loadMap(LatLng latLng) {
-        map.clear();
-        map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12f));
-        try {
-            Bitmap locatorBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(getAssets().open("locator_" + ((darkMode) ? "dark" : "light") + ".png")), 72, 72, false);
-            map.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromBitmap(locatorBitmap)).position(latLng));
-        } catch (IOException e) {
-            Log.e("Locator", e.toString());
+        if (Math.abs(currentLat - latLng.latitude) <= SAME_DISTANCE && Math.abs(currentLon - latLng.longitude) <= SAME_DISTANCE) {
+            // If the new location is close to the current one, don't reload markers
+            locatorMarker.remove();
+            locatorMarker = map.addMarker(locatorIcon.position(latLng));
+            return;
         }
+
+        currentLat = latLng.latitude;
+        currentLon = latLng.longitude;
+
+        map.clear();
+        locatorMarker = map.addMarker(locatorIcon.position(latLng));
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 12f));
 
         loadMarkers(latLng);
     }
@@ -292,47 +352,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private final RetryPolicy retryPolicy = new DefaultRetryPolicy(30000, 5, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT);
 
     private void loadMarkers(LatLng latLng) {
-        try {
-            Bitmap activeBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(getAssets().open("active_" + ((darkMode) ? "dark" : "light") + ".png")), 72, 72, false);
-            Bitmap goneBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(getAssets().open("gone_" + ((darkMode) ? "dark" : "light") + ".png")), 72, 72, false);
+        volleyQueue.add(new JsonArrayRequest(
+                Request.Method.GET,
+                "https://surveymarkers.eliasfretwell.com/getMarkers?lat=" + latLng.latitude + "&lon=" + latLng.longitude + "&radius=5&fields=pid,latitude,longitude,marker,setting,stamping,description,HISTORY",
+                null,
+                markers -> {
+                    try {
+                        for (int i = 0; i < markers.length(); i++) {
+                            JSONObject marker = markers.getJSONObject(i);
+                            double markerLatitude = marker.getDouble("latitude");
+                            double markerLongitude = marker.getDouble("longitude");
 
-            final MarkerOptions active = new MarkerOptions().icon(BitmapDescriptorFactory.fromBitmap(activeBitmap));
-            final MarkerOptions gone = new MarkerOptions().icon(BitmapDescriptorFactory.fromBitmap(goneBitmap));
-
-            volleyQueue.add(new JsonArrayRequest(
-                    Request.Method.GET,
-                    "https://surveymarkers.eliasfretwell.com/getMarkers?lat=" + latLng.latitude + "&lon=" + latLng.longitude + "&radius=5&fields=pid,latitude,longitude,marker,setting,description,HISTORY",
-                    null,
-                    markers -> {
-                        try {
-                            for (int i = 0; i < markers.length(); i++) {
-                                JSONObject marker = markers.getJSONObject(i);
-                                double markerLatitude = marker.getDouble("latitude");
-                                double markerLongitude = marker.getDouble("longitude");
-
-                                LatLng markerLatLng = new LatLng(markerLatitude, markerLongitude);
+                            LatLng markerLatLng = new LatLng(markerLatitude, markerLongitude);
+                            boolean gone;
+                            if (!marker.has("HISTORY"))
+                                // If marker doesn't have history, mark it as existing
+                                gone = false;
+                            else {
                                 JSONArray history = marker.getJSONArray("HISTORY");
                                 String condition = history.getJSONObject(history.length() - 1).getString("condition");
-                                Marker mapMarker = map.addMarker((condition.equals("GOOD") || condition.equals("POOR") ? active : gone).position(markerLatLng));
-                                assert mapMarker != null;
-                                mapMarker.setTag(marker);
+                                // https://www.ngs.noaa.gov/web/tools/updates/windesc5/dformat_documentation.shtml#A.2
+                                gone = condition.equals("MARK NOT FOUND") || condition.equals("SURFACE MARK KNOWN DESTROYED") || condition.equals("UNDERGROUND MARK DESTROYED");
                             }
-                        } catch (JSONException e) {
-                            Log.e("JSON", e.toString());
+                            Marker mapMarker = map.addMarker((gone ? goneIcon : activeIcon).position(markerLatLng));
+                            assert mapMarker != null;
+                            mapMarker.setTag(marker);
                         }
-                    },
-                    error -> {
-                        ErrorDialog dialog;
-                        if (error instanceof NoConnectionError)
-                            dialog = new ErrorDialog("No internet connection", Settings.ACTION_WIFI_SETTINGS);
-                        else
-                            dialog = new ErrorDialog("Failed to load markers\n" + error.getClass().toString().replace("class ", ""), error.getStackTrace());
-                        dialog.show(getSupportFragmentManager(), "Request");
-                        Log.e("Error", error.toString());
+                    } catch (JSONException e) {
+                        Log.e("JSON", e.toString());
                     }
-            ).setRetryPolicy(retryPolicy));
-        } catch (IOException e) {
-            Log.e("Error", e.toString());
-        }
+                },
+                error -> {
+                    ErrorDialog dialog;
+                    if (error instanceof NoConnectionError)
+                        dialog = new ErrorDialog("No internet connection", Settings.ACTION_WIFI_SETTINGS);
+                    else
+                        dialog = new ErrorDialog("Failed to load markers\n" + error.getClass().toString().replace("class ", ""), error.getStackTrace());
+                    dialog.show(getSupportFragmentManager(), "Request");
+                    Log.e("Error", error.toString());
+                }
+        ).setRetryPolicy(retryPolicy));
     }
 }

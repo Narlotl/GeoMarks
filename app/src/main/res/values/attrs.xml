@@ -2,4 +2,8 @@
 <resources>
     <attr name="buttonColor" format="color"/>
     <attr name="textColorInverse" format="color"/>
+    <attr name="markerFill" format="color"/>
+    <attr name="markerBorder" format="color"/>
+    <attr name="recenterDrawable" format="reference"/>
+    <attr name="searchDrawable" format="reference"/>
 </resources>

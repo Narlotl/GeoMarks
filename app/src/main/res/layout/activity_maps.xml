@@ -1,54 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:map="http://schemas.android.com/apk/res-auto"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent" >
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/map"
         android:name="com.google.android.gms.maps.SupportMapFragment"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        map:layout_constraintBottom_toTopOf="@+id/navigationBar"
-        map:layout_constraintEnd_toEndOf="parent"
-        map:layout_constraintStart_toStartOf="parent"
-        map:layout_constraintTop_toTopOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         tools:context=".MapsActivity" />
 
     <LinearLayout
-        android:id="@+id/navigationBar"
-        style="?android:attr/buttonBarStyle"
-        android:layout_width="match_parent"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        map:layout_constraintBottom_toBottomOf="parent">
+        android:orientation="vertical"
+        android:padding="18sp"
+        tools:ignore="RtlHardcoded">
 
-        <Button
+        <ImageButton
             android:id="@+id/search"
-            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="0dp"
-            android:background="@android:color/transparent"
-            android:textColor="@color/black"
-            android:text="@string/search"
-            android:textAllCaps="false"
-            android:textSize="22sp" />
+            android:src="?attr/searchDrawable"
+            android:background="@drawable/action_button"
+            android:contentDescription="@string/search" />
 
-        <Button
+        <ImageButton
             android:id="@+id/recenter"
-            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="0dp"
-            android:background="@android:color/transparent"
-            android:drawableStart="@drawable/near_me"
-            android:textColor="@color/black"
-            android:text="@string/recenter"
-            android:textAllCaps="false"
-            android:textSize="22sp" />
+            android:layout_marginTop="8sp"
+            android:src="?attr/recenterDrawable"
+            android:background="@drawable/action_button"
+            android:contentDescription="@string/recenter" />
 
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>
