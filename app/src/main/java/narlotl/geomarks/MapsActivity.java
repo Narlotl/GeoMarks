@@ -287,10 +287,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 description.setText(WordUtils.capitalizeFully(markerData.getString("description")));
 
                 // Show history
-                if (markerData.has("HISTORY")) {
+                if (markerData.has("history")) {
                     historyGroup.setVisibility(View.VISIBLE);
 
-                    JSONArray history = markerData.getJSONArray("HISTORY");
+                    JSONArray history = markerData.getJSONArray("history");
                     StringBuilder historyText = new StringBuilder();
                     for (int i = history.length() - 1; i >= 0; i--) {
                         JSONObject report = history.getJSONObject(i);
@@ -354,7 +354,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void loadMarkers(LatLng latLng) {
         volleyQueue.add(new JsonArrayRequest(
                 Request.Method.GET,
-                "https://surveymarkers.eliasfretwell.com/getMarkers?lat=" + latLng.latitude + "&lon=" + latLng.longitude + "&radius=5&fields=pid,latitude,longitude,marker,setting,stamping,description,HISTORY",
+                "https://surveymarkers.eliasfretwell.com/getMarkers?lat=" + latLng.latitude + "&lon=" + latLng.longitude + "&radius=5&fields=pid,latitude,longitude,marker,setting,stamping,description,history",
                 null,
                 markers -> {
                     try {
@@ -365,11 +365,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                             LatLng markerLatLng = new LatLng(markerLatitude, markerLongitude);
                             boolean gone;
-                            if (!marker.has("HISTORY"))
+                            if (!marker.has("history"))
                                 // If marker doesn't have history, mark it as existing
                                 gone = false;
                             else {
-                                JSONArray history = marker.getJSONArray("HISTORY");
+                                JSONArray history = marker.getJSONArray("history");
                                 String condition = history.getJSONObject(history.length() - 1).getString("condition");
                                 // https://www.ngs.noaa.gov/web/tools/updates/windesc5/dformat_documentation.shtml#A.2
                                 gone = condition.equals("MARK NOT FOUND") || condition.equals("SURFACE MARK KNOWN DESTROYED") || condition.equals("UNDERGROUND MARK DESTROYED");
