@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace 'narlotl.geomarks'
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId "narlotl.geomarks"
         minSdk 24
         targetSdk 34
         versionCode 1
-        versionName "1.1.2"
+        versionName "1.2.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -47,4 +47,5 @@ dependencies {
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'com.google.android.gms:play-services-maps:19.2.0'
+    implementation ("androidx.webkit:webkit:1.18.0")
 }

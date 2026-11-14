@@ -1,20 +1,37 @@
 package narlotl.geomarks;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.webkit.PrerenderException;
+import androidx.webkit.PrerenderOperationCallback;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.AnimationUtils;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -74,7 +91,7 @@ import narlotl.geomarks.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
     public static String capitalizeFirstLetter(String s) {
-        if (s.length() == 0)
+        if (s.isEmpty())
             return s;
 
         String copy = s.toLowerCase();
@@ -88,6 +105,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return s.substring(index + 2);
     }
 
+    private ActivityMapsBinding binding;
+
+    // Go back to the map from the recovery page
+    private void returnToMapView() {
+        // Reset WebView
+        recoveryPage.loadUrl("about:blank");
+        recoveryPage.clearHistory();
+        // Transition to map view
+        View mapView = binding.getRoot();
+        mapView.startAnimation(AnimationUtils.loadAnimation(MapsActivity.this, android.R.anim.slide_in_left));
+        setContentView(binding.getRoot());
+    }
+
     private final List<Place.Field> placeFields = Collections.singletonList(Place.Field.LOCATION);
     private static final String placeErrorString = "Error finding place.";
 
@@ -95,11 +125,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap map;
     private RequestQueue volleyQueue;
     private FusedLocationProviderClient fusedLocationClient;
-    private MarkerOptions activeIcon;
-    private MarkerOptions goneIcon;
     private MarkerOptions locatorIcon;
     private Marker locatorMarker;
     private double currentLat, currentLon;
+    private OnBackPressedCallback backPressedCallback;
+    private RecoveryDbHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,8 +137,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         darkMode = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 
-        narlotl.geomarks.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
+        binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        // Set up back button to close recovery screen
+        backPressedCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                // Once recovery page is closed, the listener shouldn't be active
+                this.setEnabled(false);
+                returnToMapView();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
+        // Initialize database
+        dbHelper = new RecoveryDbHelper(this);
 
         // Initialize place search
         Places.initializeWithNewPlacesApiEnabled(this, getString(R.string.API_KEY));
@@ -186,26 +229,145 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
     }
 
+    private int crashCount = 0;
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private void initRecoveryPage() {
+        recoveryPage = new WebView(this);
+        // Allow photo selection
+        // https://stackoverflow.com/a/38138264
+        recoveryPage.setWebChromeClient(new WebChromeClient() {
+            public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), r -> {
+                }).launch(
+                        new PickVisualMediaRequest.Builder().setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build()
+                );
+                return true;
+            }
+        });
+        WebSettings settings = recoveryPage.getSettings();
+        settings.setJavaScriptEnabled(true);
+        // Allows recovery page to store cookies
+        settings.setDomStorageEnabled(true);
+        // Retrieve data from submission page
+        recoveryPage.setWebViewClient(new RecoveryPageWebViewClient(url -> {
+            if (!url.contains("?pagetype=submit"))
+                return;
+
+            recoveryPage.evaluateJavascript(
+                    "(() => { " +
+                            "const tbody = document.querySelector('table.table > tbody');" +
+                            "let pid, condition;" +
+                            // Loop through rows of table until PID and condition are found
+                            "for (const row of tbody.children) {" +
+                            "const field = row.children[0].innerText;" +
+                            "if (field === 'PID') {" +
+                            "pid = row.children[1].innerText;" +
+                            "if (condition)" +
+                            "break;" +
+                            "}" +
+                            "else if (field === 'Condition') {" +
+                            "condition = row.children[1].innerText;" +
+                            "if (pid)" +
+                            "break;" +
+                            "}" +
+                            "}" +
+                            "return pid + ',' + condition;" +
+                            "})();",
+                    s -> {
+                        int index = s.indexOf(',');
+                        String pid = s.substring(1, index);
+                        int condition = 2;
+                    /* Condition codes:
+                       G (Good): 0
+                       O (Other): 1
+                       P (Poor): 1
+                       X (Surface mark destroyed): 2
+                       Y (Underground mark destroyed): 2
+                       N (Not recovered): 2
+                     */
+                        switch (s.substring(index + 1, index + 2)) {
+                            case "G":
+                                condition = 0;
+                                break;
+                            case "O":
+                            case "P":
+                                condition = 1;
+                                break;
+                        }
+                        int time = (int) (System.currentTimeMillis() / 1000);
+
+                        // Put recovery data into DB
+                        ContentValues values = new ContentValues();
+                        values.put(RecoveryDbHelper.PID_KEY, pid);
+                        values.put(RecoveryDbHelper.CONDITION_KEY, condition);
+                        values.put(RecoveryDbHelper.TIME_KEY, time);
+                        SQLiteDatabase db = dbHelper.getWritableDatabase();
+                        db.insert(RecoveryDbHelper.TABLE_NAME, null, values);
+                        db.close();
+
+                        // Update marker icon
+                        try {
+                            selectedMarker.setIcon(
+                                    iconMatrix[((JSONObject) selectedMarker.getTag()).getInt("gone")][darkMode ? 1 : 0][condition + 1]
+                                    .getIcon()
+                            );
+                        } catch (JSONException e) {
+                            Log.e("JSONError", e.toString());
+                        }
+
+                        returnToMapView();
+                        Toast.makeText(this, "Submission recorded", Toast.LENGTH_SHORT).show();
+                    }
+            );
+        },
+                () -> {
+                    // Handle WebView render process crashes
+                    if (crashCount++ >= 3)
+                        throw new RuntimeException("WebView crashed too many times");
+                    initRecoveryPage();
+                }
+        ));
+    }
+
     final static String imageHost = "https://geodesy.noaa.gov";
     final Picasso picasso = Picasso.get();
+    WebView recoveryPage;
+    private static final MarkerOptions[][][] iconMatrix = new MarkerOptions[2][2][4]; // Status > theme > submission
+    private Marker selectedMarker = null;
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.setMapColorScheme(MapColorScheme.FOLLOW_SYSTEM);
         map.setOnMapLongClickListener(this::loadMap);
+        map.setOnMapClickListener(latLng -> Toast.makeText(this, "Hold to relocate the map.", Toast.LENGTH_SHORT).show());
 
-        String theme = darkMode ? "dark" : "light";
-        activeIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("active_" + theme + ".png"));
-        goneIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("gone_" + theme + ".png"));
-        locatorIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("locator_" + theme + ".png")).zIndex(2);
+        // Track user recovery submissions
+        initRecoveryPage();
+
+        // Fill icon matrix
+        final String[] statuses = {"active", "gone"},
+                themes = {"light", "dark"},
+                submissions = {"" /* no submission */, "_check" /* good condition */, "_dash" /* poor/other */, "_x" /* not recovered/destroyed */};
+        for (int i = 0; i < statuses.length; i++)
+            for (int j = 0; j < themes.length; j++)
+                for (int k = 0; k < submissions.length; k++)
+                    iconMatrix[i][j][k] = new MarkerOptions().anchor(0.5f, 0.5f)
+                            .icon(BitmapDescriptorFactory.fromAsset(statuses[i] + "_" + themes[j] + submissions[k] + ".png"));
+
+        locatorIcon = new MarkerOptions().anchor(0.5f, 0.5f).icon(BitmapDescriptorFactory.fromAsset("locator_" + (darkMode ? "dark" : "light") + ".png")).zIndex(2);
 
         PopupWindow popup = new PopupWindow(this);
         popup.setAnimationStyle(R.style.popup_animation);
         View view = getLayoutInflater().inflate(R.layout.popup, findViewById(R.id.popup), false);
         ScrollView scrollView = view.findViewById(R.id.scroll_view);
         Button close = view.findViewById(R.id.close);
-        close.setOnClickListener(e -> popup.dismiss());
+        final CancellationSignal preloadCancellationSignal = new CancellationSignal();
+        close.setOnClickListener(e -> {
+            popup.dismiss();
+            preloadCancellationSignal.cancel();
+        });
         TextView title = view.findViewById(R.id.title);
         LinearLayout settingGroup = view.findViewById(R.id.setting_group);
         TextView setting = view.findViewById(R.id.setting);
@@ -225,7 +387,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (marker.getTag() == null)
                 return true;
 
+            selectedMarker = marker;
+
             volleyQueue.cancelAll(request -> request.getClass().equals(JsonArrayRequest.class));
+            preloadCancellationSignal.cancel();
             popup.dismiss();
             imagesTitle.setVisibility(View.GONE);
 
@@ -233,6 +398,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 JSONObject markerData = (JSONObject) marker.getTag();
                 assert markerData != null;
                 String pid = markerData.getString("pid");
+
+                // Preload recovery page
+                String recoveryUrl = "https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&PID=" + pid;
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.PRERENDER_WITH_URL)) {
+                    WebViewCompat.prerenderUrlAsync(
+                            recoveryPage,
+                            recoveryUrl,
+                            preloadCancellationSignal,
+                            Runnable::run,
+                            new PrerenderOperationCallback() {
+                                @Override
+                                public void onPrerenderActivated() {
+                                }
+
+                                @Override
+                                public void onError(@org.jspecify.annotations.NonNull PrerenderException exception) {
+                                }
+                            }
+                    );
+                }
 
                 // Request images
                 images.removeAllViews();
@@ -244,7 +429,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 imageView.setLayoutParams(imageParams);
                             final Uri imageUri = Uri.parse(imageHost + data.getString(i));
                             picasso.load(imageUri).resize(images.getWidth(), 0).into(imageView, new Callback() {
-
                                 @Override
                                 public void onSuccess() {
                                     imagesTitle.setVisibility(View.VISIBLE);
@@ -266,7 +450,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // Have buttons go to marker pages
                 double latitude = markerData.getDouble("latitude"), longitude = markerData.getDouble("longitude");
                 openMap.setOnClickListener(click -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/place/" + latitude + "," + longitude))));
-                submit.setOnClickListener(click -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&PID=" + pid))));
+                // Open recovery page in WebView
+                submit.setOnClickListener(click -> {
+                    recoveryPage.loadUrl(recoveryUrl);
+                    recoveryPage.startAnimation(AnimationUtils.loadAnimation(MapsActivity.this, android.R.anim.slide_out_right));
+                    setContentView(recoveryPage);
+                    popup.dismiss();
+                    // Return to map when back button is pressed
+                    backPressedCallback.setEnabled(true);
+                });
+                //startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://geodesy.noaa.gov/cgi-bin/mark_recovery_form.prl?liteMode=true&PID=" + pid))));
 
                 // Set text box content
                 title.setText(pid);
@@ -321,8 +514,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void getLocation() {
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener(this,
                         location -> loadMap(new LatLng(location.getLatitude(), location.getLongitude()))
@@ -351,13 +544,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private final RetryPolicy retryPolicy = new DefaultRetryPolicy(30000, 5, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT);
 
+
+    private final static String[] projection = {RecoveryDbHelper.CONDITION_KEY};
+    private final static String selection = RecoveryDbHelper.PID_KEY + " = ?";
+    private final static String sortOrder = RecoveryDbHelper.TIME_KEY + " DESC";
+
+    @SuppressLint("Range")
     private void loadMarkers(LatLng latLng) {
         volleyQueue.add(new JsonArrayRequest(
                 Request.Method.GET,
                 "https://surveymarkers.eliasfretwell.com/getMarkers?lat=" + latLng.latitude + "&lon=" + latLng.longitude + "&radius=5&fields=pid,latitude,longitude,marker,setting,stamping,description,history",
                 null,
                 markers -> {
-                    try {
+                    try (SQLiteDatabase db = dbHelper.getReadableDatabase()) {
                         for (int i = 0; i < markers.length(); i++) {
                             JSONObject marker = markers.getJSONObject(i);
                             double markerLatitude = marker.getDouble("latitude");
@@ -374,7 +573,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 // https://www.ngs.noaa.gov/web/tools/updates/windesc5/dformat_documentation.shtml#A.2
                                 gone = condition.equals("MARK NOT FOUND") || condition.equals("SURFACE MARK KNOWN DESTROYED") || condition.equals("UNDERGROUND MARK DESTROYED");
                             }
-                            Marker mapMarker = map.addMarker((gone ? goneIcon : activeIcon).position(markerLatLng));
+                            marker.put("gone", gone ? 1 : 0);
+
+                            Cursor cursor = db.query(
+                                    RecoveryDbHelper.TABLE_NAME,
+                                    projection,
+                                    selection,
+                                    new String[]{marker.getString("pid")},
+                                    null,
+                                    null,
+                                    sortOrder
+                            );
+                            int submissionStatus = 0;
+                            if (cursor.moveToFirst())
+                                submissionStatus = cursor.getInt(cursor.getColumnIndex(RecoveryDbHelper.CONDITION_KEY)) + 1;
+                            cursor.close();
+                            Marker mapMarker = map.addMarker(iconMatrix[gone ? 1 : 0][darkMode ? 1 : 0][submissionStatus].position(markerLatLng));
                             assert mapMarker != null;
                             mapMarker.setTag(marker);
                         }
@@ -392,5 +606,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Log.e("Error", error.toString());
                 }
         ).setRetryPolicy(retryPolicy));
+    }
+
+    @Override
+    protected void onDestroy() {
+        dbHelper.close();
+        recoveryPage.destroy();
+        super.onDestroy();
     }
 }

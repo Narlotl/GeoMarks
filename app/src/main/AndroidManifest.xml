@@ -27,7 +27,7 @@
 
         <meta-data
             android:name="version"
-            android:value="1.1.2" />
+            android:value="1.2.0" />
 
         <activity
             android:name=".MapsActivity"
