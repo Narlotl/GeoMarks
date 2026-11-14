@@ -130,6 +130,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private double currentLat, currentLon;
     private OnBackPressedCallback backPressedCallback;
     private RecoveryDbHelper dbHelper;
+    private ActivityResultLauncher<PickVisualMediaRequest> activityResultLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,6 +153,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
         // Initialize database
         dbHelper = new RecoveryDbHelper(this);
+
+        activityResultLauncher = registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), r -> { });
 
         // Initialize place search
         Places.initializeWithNewPlacesApiEnabled(this, getString(R.string.API_KEY));
@@ -235,13 +238,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void initRecoveryPage() {
         recoveryPage = new WebView(this);
         // Allow photo selection
-        // https://stackoverflow.com/a/38138264
         recoveryPage.setWebChromeClient(new WebChromeClient() {
             public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
-                registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), r -> {
-                }).launch(
-                        new PickVisualMediaRequest.Builder().setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build()
-                );
+                activityResultLauncher.launch(new PickVisualMediaRequest.Builder().setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build());
                 return true;
             }
         });
