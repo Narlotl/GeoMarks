@@ -2,7 +2,6 @@ package narlotl.geomarks;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -130,7 +129,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private double currentLat, currentLon;
     private OnBackPressedCallback backPressedCallback;
     private RecoveryDbHelper dbHelper;
-    private ActivityResultLauncher<PickVisualMediaRequest> activityResultLauncher;
+    private ActivityResultLauncher<Intent> activityResultLauncher;
+    private ValueCallback<Uri[]> filePathCallback = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,7 +154,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Initialize database
         dbHelper = new RecoveryDbHelper(this);
 
-        activityResultLauncher = registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), r -> { });
+        // Updated from https://stackoverflow.com/a/62625964
+        activityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), r -> {
+            filePathCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.getResultCode(), r.getData()));
+            filePathCallback = null;
+        });
 
         // Initialize place search
         Places.initializeWithNewPlacesApiEnabled(this, getString(R.string.API_KEY));
@@ -237,17 +241,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint("SetJavaScriptEnabled")
     private void initRecoveryPage() {
         recoveryPage = new WebView(this);
-        // Allow photo selection
-        recoveryPage.setWebChromeClient(new WebChromeClient() {
-            public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
-                activityResultLauncher.launch(new PickVisualMediaRequest.Builder().setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build());
-                return true;
-            }
-        });
         WebSettings settings = recoveryPage.getSettings();
         settings.setJavaScriptEnabled(true);
         // Allows recovery page to store cookies
         settings.setDomStorageEnabled(true);
+        // Allow photo selection
+        settings.setAllowFileAccess(true);
+        recoveryPage.setWebChromeClient(new WebChromeClient() {
+            // Updated from https://stackoverflow.com/a/62625964
+            public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                activityResultLauncher.launch(fileChooserParams.createIntent());
+                MapsActivity.this.filePathCallback = filePathCallback;
+                return true;
+            }
+        });
         // Retrieve data from submission page
         recoveryPage.setWebViewClient(new RecoveryPageWebViewClient(url -> {
             if (!url.contains("?pagetype=submit"))
